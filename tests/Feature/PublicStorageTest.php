@@ -18,5 +18,8 @@ class PublicStorageTest extends TestCase
         $response->assertOk();
         $this->assertStringStartsWith('image/jpeg', $response->headers->get('Content-Type'));
         $this->assertStringContainsString('inline', $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('/media/complaints/photo.jpg', route('public.storage', [
+            'path' => 'complaints/photo.jpg',
+        ]));
     }
 }

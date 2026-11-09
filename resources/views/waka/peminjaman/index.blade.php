@@ -311,27 +311,6 @@
                         <small class="text-danger">Format JPG/PNG, Maksimal 2MB.</small>
                     </div>
 
-                    @if(auth()->check() && auth()->user()->role_id == 1)
-                        <hr class="my-3">
-                        <div class="alert alert-info py-2 px-3 small mb-3">
-                            <i class="bi bi-info-circle me-1"></i> <strong>Pencegahan Bentrok (Relokasi):</strong> Jika ruangan utama di atas sudah dipinjam orang lain, sistem akan memindahkan jadwal lama ke ruangan pengganti di bawah ini.
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-dark">Ruangan Pengganti (Jika Bentrok)</label>
-                            <select name="new_room_id" class="form-select">
-                                <option value="" selected>-- Pilih Ruangan Pengganti --</option>
-                                @foreach($ruangans as $room)
-                                    <option value="{{ $room->id }}">{{ $room->room_name }} (Kapasitas: {{ $room->capacity }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-dark">Alasan Pemindahan Jadwal</label>
-                            <textarea name="move_reason" class="form-control" rows="2" placeholder="Contoh: Digunakan untuk acara dinas/sekolah mendesak..."></textarea>
-                        </div>
-                    @endif
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>

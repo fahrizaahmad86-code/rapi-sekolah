@@ -100,10 +100,10 @@ class PicApiController extends Controller
     {
         return $complaint->toArray() + [
             'photo_url' => $complaint->photo_path
-                ? url('storage/'.$complaint->photo_path)
+                ? route('public.storage', ['path' => $complaint->photo_path])
                 : null,
             'completion_photo_url' => $complaint->completion_photo_path
-                ? url('storage/'.$complaint->completion_photo_path)
+                ? route('public.storage', ['path' => $complaint->completion_photo_path])
                 : null,
         ];
     }

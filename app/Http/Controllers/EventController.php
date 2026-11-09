@@ -47,8 +47,6 @@ class EventController extends Controller
             'start_session' => 'required|integer|min:1|max:10',
             'end_session'   => 'required|integer|min:1|max:10|gte:start_session',
             'document_path' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-            'new_room_id'   => 'nullable|exists:rooms,id',
-            'move_reason'   => 'nullable|string',
         ], [
             'date.after_or_equal' => 'Tanggal peminjaman harus hari ini atau setelahnya.',
             'agenda_type.required' => 'Pilih jenis agenda (internal, khusus, guru, atau umum).',
@@ -72,39 +70,10 @@ class EventController extends Controller
             })
             ->first();
 
-        // 2. Jika bukan Waka dan terjadi bentrok -> Tolak
-        if (!$isWaka && $conflictingEvent) {
+        // 2. Tolak semua peminjaman yang bentrok. Perpindahan agenda lama
+        // dapat dilakukan terpisah melalui fitur pindah yang tersedia.
+        if ($conflictingEvent) {
             return redirect()->back()->withInput()->with('error', 'Gagal diajukan! Ruangan sudah dipinjam/diajukan pada sesi tersebut.');
-        }
-
-        // 3. Jika Waka dan terjadi bentrok -> Relokasi / Pemindahan Ruangan
-        if ($isWaka && $conflictingEvent) {
-            if (!$request->filled('new_room_id') || !$request->filled('move_reason')) {
-                return redirect()->back()->withInput()->with('error', 'Ruangan ini sudah dipinjam (' . $conflictingEvent->getAttribute('event_name') . '). Harap pilih Ruangan Pengganti dan isi Alasan Pemindahan.');
-            }
-
-            // Cek apakah ruangan pengganti juga sedang terpakai pada sesi tersebut
-            $isNewRoomBusy = Event::where('room_id', $validated['new_room_id'])
-                ->where('date', $validated['date'])
-                ->where('status', '!=', 'Rejected')
-                ->where('id', '!=', $conflictingEvent->getAttribute('id'))
-                ->where(function ($query) use ($conflictingEvent) {
-                    $query->where('start_session', '<=', $conflictingEvent->getAttribute('end_session'))
-                          ->where('end_session', '>=', $conflictingEvent->getAttribute('start_session'));
-                })
-                ->exists();
-
-            if ($isNewRoomBusy) {
-                return redirect()->back()->withInput()->with('error', 'Ruangan pengganti yang Anda pilih juga sedang dipinjam pada sesi tersebut. Silakan pilih ruangan lain.');
-            }
-
-            // Pindahkan peminjaman sebelumnya ke ruangan baru beserta alasannya
-            $conflictingEvent->update([
-                'room_id'     => $validated['new_room_id'],
-                'move_reason' => $validated['move_reason'],
-            ]);
-            $conflictingEvent->refresh()->load('room');
-            $conflictingEvent->user->notify(PeminjamanNotification::moved($conflictingEvent));
         }
 
         $suratPath = $request->file('document_path')->store('peminjaman', 'public');
@@ -121,11 +90,9 @@ class EventController extends Controller
             'status'        => $isWaka ? 'Approved' : 'Pending',
         ]);
 
-        $pesanSukses = ($isWaka && $conflictingEvent)
-            ? 'Agenda Waka berhasil dibuat, dan peminjaman (' . $conflictingEvent->getAttribute('event_name') . ') telah dipindahkan ke ruangan pengganti.'
-            : ($isWaka 
-                ? 'Agenda Waka berhasil dibuat dan langsung disetujui.' 
-                : 'Pengajuan peminjaman berhasil dibuat.');
+        $pesanSukses = $isWaka
+            ? 'Agenda Waka berhasil dibuat dan langsung disetujui.'
+            : 'Pengajuan peminjaman berhasil dibuat.';
 
         return redirect()->back()->with('success', $pesanSukses);
     }

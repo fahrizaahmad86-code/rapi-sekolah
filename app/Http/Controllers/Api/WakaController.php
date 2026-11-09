@@ -162,7 +162,7 @@ class WakaController extends Controller
                 ->orderByDesc('start_session')
                 ->get()
                 ->map(fn (Event $event) => $event->toArray() + [
-                    'document_url' => $event->document_path ? url('storage/'.$event->document_path) : null,
+                    'document_url' => $event->document_path ? route('public.storage', ['path' => $event->document_path]) : null,
                 ]),
             'rooms' => Room::where('is_active', true)->orderBy('room_name')->get(['id', 'room_name', 'capacity']),
         ]);
@@ -322,9 +322,9 @@ class WakaController extends Controller
                 'reporter:id,fullname',
                 'handler:id,fullname',
             ])->orderByDesc('created_at')->get()->map(fn (Complaint $complaint) => $complaint->toArray() + [
-                'photo_url' => $complaint->photo_path ? url('storage/'.$complaint->photo_path) : null,
+                'photo_url' => $complaint->photo_path ? route('public.storage', ['path' => $complaint->photo_path]) : null,
                 'completion_photo_url' => $complaint->completion_photo_path
-                    ? url('storage/'.$complaint->completion_photo_path)
+                    ? route('public.storage', ['path' => $complaint->completion_photo_path])
                     : null,
             ]),
             'rooms' => Room::orderBy('room_name')->get(['id', 'room_name']),

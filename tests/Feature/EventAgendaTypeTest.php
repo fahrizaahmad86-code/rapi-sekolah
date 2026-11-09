@@ -70,4 +70,52 @@ class EventAgendaTypeTest extends TestCase
 
         $this->assertSame(count(Event::JENIS_AGENDA), Event::count());
     }
+
+    public function test_waka_cannot_submit_a_booking_that_conflicts_with_an_existing_event(): void
+    {
+        $waka = User::create([
+            'fullname' => 'Waka Sarpras',
+            'username' => 'waka',
+            'email' => 'waka@example.test',
+            'password' => 'password',
+            'role_id' => 1,
+        ]);
+        $room = Room::create([
+            'room_name' => 'Aula',
+            'capacity' => 100,
+            'location' => 'Gedung Utama',
+            'is_active' => true,
+        ]);
+        $existingEvent = Event::create([
+            'room_id' => $room->id,
+            'user_id' => $waka->id,
+            'event_name' => 'Agenda lama',
+            'agenda_type' => 'internal',
+            'date' => now()->addDay()->toDateString(),
+            'start_session' => 1,
+            'end_session' => 2,
+            'document_path' => 'peminjaman/surat-lama.jpg',
+            'status' => 'Approved',
+        ]);
+
+        $this->actingAs($waka)
+            ->post(route('peminjaman.store'), [
+                'room_id' => $room->id,
+                'event_name' => 'Agenda baru',
+                'agenda_type' => 'internal',
+                'date' => $existingEvent->date,
+                'start_session' => 2,
+                'end_session' => 3,
+                'document_path' => UploadedFile::fake()->image('surat-baru.jpg'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Gagal diajukan! Ruangan sudah dipinjam/diajukan pada sesi tersebut.');
+
+        $this->assertSame(1, Event::count());
+        $this->assertDatabaseHas('events', [
+            'id' => $existingEvent->id,
+            'room_id' => $room->id,
+            'event_name' => 'Agenda lama',
+        ]);
+    }
 }

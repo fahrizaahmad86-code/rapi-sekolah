@@ -93,7 +93,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/storage/{path}', [PublicStorageController::class, 'show'])->where('path', '.*')->name('public.storage');
+Route::get('/media/{path}', [PublicStorageController::class, 'show'])->where('path', '.*')->name('public.storage');
 Route::get('/notifications/{id}/read', function ($id) {
     $notification = auth()->user()->notifications()->findOrFail($id);
     $notification->markAsRead();
