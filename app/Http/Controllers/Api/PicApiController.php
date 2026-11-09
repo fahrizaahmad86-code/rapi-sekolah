@@ -47,11 +47,8 @@ class PicApiController extends Controller
     public function updateStatus(Request $request, Complaint $complaint)
     {
         $this->authorizePic($request);
-        abort_unless(
-            $complaint->handler_id === $request->user()->id,
-            403,
-            'Anda hanya dapat memperbarui pengaduan yang ditugaskan kepada Anda.'
-        );
+        $complaint = Complaint::where('handler_id', $request->user()->id)
+            ->findOrFail($complaint->id);
 
         if ($complaint->isFinished()) {
             return response()->json([

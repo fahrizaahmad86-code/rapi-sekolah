@@ -9,7 +9,7 @@
 @endphp
 
 <h5 class="fw-bold mt-4 mb-2 tabel-judul">A. Peminjaman Ruangan <small class="text-muted fw-normal">({{ $peminjaman->count() }} data)</small></h5>
-<div class="table-responsive">
+<div class="table-responsive {{ !empty($scrollTables) ? 'report-table-scroll' : '' }}">
     <table class="table table-bordered table-sm align-middle mb-0 tabel-laporan">
         <thead class="table-light">
             <tr>
@@ -34,7 +34,7 @@
                         {{ SesiPeminjaman::label($e->start_session, $e->end_session) }}<br>
                         <small class="text-muted">{{ substr(SesiPeminjaman::mulai($e->start_session), 0, 5) }} - {{ substr(SesiPeminjaman::selesai($e->end_session), 0, 5) }}</small>
                     </td>
-                    <td><span class="badge bg-{{ $badgeEvent[$e->status] ?? 'secondary' }}">{{ $labelEvent[$e->status] ?? $e->status }}</span></td>
+                    <td>{{ $labelEvent[$e->status] ?? $e->status }}</td>
                 </tr>
             @empty
                 <tr><td colspan="{{ $tampilTanggal ? 7 : 6 }}" class="text-center text-muted py-3">Tidak ada peminjaman ruangan pada periode ini.</td></tr>
@@ -44,7 +44,7 @@
 </div>
 
 <h5 class="fw-bold mt-4 mb-2 tabel-judul">B. Pengaduan Kerusakan / Fasilitas <small class="text-muted fw-normal">({{ $pengaduan->count() }} data)</small></h5>
-<div class="table-responsive">
+<div class="table-responsive {{ !empty($scrollTables) ? 'report-table-scroll' : '' }}">
     <table class="table table-bordered table-sm align-middle mb-0 tabel-laporan">
         <thead class="table-light">
             <tr>
@@ -66,7 +66,7 @@
                     <td>{{ $c->reporter->fullname ?? '-' }}</td>
                     <td>{{ $c->description }}</td>
                     <td>{{ $c->handler->fullname ?? '-' }}</td>
-                    <td><span class="badge bg-{{ $badgeRepair[$c->status_repair] ?? 'secondary' }}">{{ $c->status_repair }}</span></td>
+                    <td>{{ $c->status_repair }}</td>
                 </tr>
             @empty
                 <tr><td colspan="7" class="text-center text-muted py-3">Tidak ada pengaduan kerusakan pada periode ini.</td></tr>

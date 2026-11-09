@@ -19,6 +19,35 @@
         text-transform: capitalize;
     }
     
+    /* Sabtu, Minggu & hari libur nasional -> merah */
+    .fc .fc-daygrid-day.hari-libur {
+        background-color: #FECACA !important;
+    }
+    .fc .fc-daygrid-day.hari-libur .fc-daygrid-day-number {
+        color: #B91C1C !important;
+        font-weight: 600;
+    }
+    .fc .fc-daygrid-day.hari-libur.fc-day-today {
+        box-shadow: inset 0 0 0 2px #F59E0B;
+    }
+    .fc .nama-libur {
+        flex: 1;
+        min-width: 0;
+        padding: 2px 0 0 4px;
+        font-size: 10px;
+        line-height: 1.2;
+        font-weight: 600;
+        color: #B91C1C;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Legenda */
+    .legenda-kalender { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+    .legenda-kalender .item { display: inline-flex; align-items: center; gap: 6px; }
+    .legenda-kalender .kotak { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
     .fc .fc-button-primary:not(:disabled):active,
     .fc .fc-button-primary:not(:disabled).fc-button-active,
     .fc .fc-button-primary:hover {
@@ -40,6 +69,12 @@
         <div class="col-lg-8 mb-3">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-2">
+                    <div class="legenda-kalender px-2 pt-2 pb-3">
+                        @foreach(\App\Models\Event::JENIS_AGENDA as $j)
+                            <span class="item"><span class="kotak" style="background: {{ $j['warna'] }}"></span> {{ $j['label'] }} <span class="text-muted">({{ $j['keterangan'] }})</span></span>
+                        @endforeach
+                        <span class="item"><span class="kotak" style="background: #FECACA; border: 1px solid #F87171"></span> Sabtu, Minggu &amp; Libur Nasional</span>
+                    </div>
                     <div id="calendar"></div>
                 </div>
             </div>
@@ -51,11 +86,14 @@
             <span> Agenda Mendatang</span>
             <span class="badge bg-primary rounded-pill">{{ $upcomingEvents->count() ?? 0}}</span>
         </div>
-        <div class="card-body p-2" data-pager="list">
+        <div class="card-body p-2" style="max-height: 420px; overflow-y: auto;">
             @forelse($upcomingEvents as $item)
-                <div class="p-2 mb-2 bg-light rounded border-start border-4 border-primary shadow-sm">
+                <div class="p-2 mb-2 bg-light rounded border-start border-4 shadow-sm" style="border-color: {{ $item->warna }} !important;">
                     <div class="d-flex justify-content-between align-items-start">
-                        <div class="fw-bold text-dark fs-6">{{ $item->event_name }}</div>
+                        <div>
+                            <div class="fw-bold text-dark fs-6">{{ $item->event_name }}</div>
+                            <span class="badge text-white fw-normal" style="background-color: {{ $item->warna }};">{{ $item->label_jenis }}</span>
+                        </div>
                         <span class="badge bg-info text-dark ms-2">
                             {{ \Carbon\Carbon::parse($item->date)->translatedFormat('d M') }}
                         </span>
@@ -66,7 +104,7 @@
                             <span>{{ $item->room->room_name ?? 'Lokasi Belum Ditentukan' }}</span>
                         </div>
                         <div class="d-flex align-items-center">
-                            <span> Sesi {{ $item->start_session }} - Sesi {{ $item->end_session }}</span>
+                            <span> {{ \App\Support\SesiPeminjaman::labelDenganJam((int) $item->start_session, (int) $item->end_session) }}</span>
                         </div>
                     </div>
                 </div>
@@ -93,6 +131,11 @@
                         <th width="35%" class="text-muted">Nama Acara</th>
                         <td width="5%">:</td>
                         <td id="modalEventName" class="fw-bold text-dark"></td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Jenis Agenda</th>
+                        <td>:</td>
+                        <td><span id="modalJenis" class="badge text-white"></span> <small id="modalKeterangan" class="text-muted d-block mt-1"></small></td>
                     </tr>
                     <tr>
                         <th class="text-muted">Ruangan</th>
@@ -126,20 +169,53 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
+        var hariLibur = @json($hariLibur);
+
+        // 'YYYY-MM-DD' dari tanggal lokal (hindari geser hari karena UTC)
+        function tglKey(d) {
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var t = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + m + '-' + t;
+        }
         
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             themeSystem: 'bootstrap5',
             locale: 'id',
-            height: 383,
+            height: 'auto',
             aspectRatio: 1.8,
             dayMaxEvents: 2,
-            events: @json($calendarEvents), 
+            events: @json($calendarEvents),
+
+            // Sabtu (6), Minggu (0) & hari libur nasional -> kelas merah
+            dayCellClassNames: function(arg) {
+                var dow = arg.date.getDay();
+                if (dow === 0 || dow === 6 || hariLibur[tglKey(arg.date)]) {
+                    return ['hari-libur'];
+                }
+                return [];
+            },
+            dayCellDidMount: function(arg) {
+                var nama = hariLibur[tglKey(arg.date)];
+                if (!nama) return;
+                arg.el.title = nama;
+                var top = arg.el.querySelector('.fc-daygrid-day-top');
+                if (top) {
+                    var label = document.createElement('div');
+                    label.className = 'nama-libur';
+                    label.textContent = nama;
+                    top.appendChild(label);
+                }
+            },
             
             eventClick: function(info) {
                 info.jsEvent.preventDefault();
                 
                 document.getElementById('modalEventName').innerText = info.event.title;
+                var jenis = document.getElementById('modalJenis');
+                jenis.innerText = info.event.extendedProps.jenis;
+                jenis.style.backgroundColor = info.event.backgroundColor;
+                document.getElementById('modalKeterangan').innerText = info.event.extendedProps.keterangan;
                 document.getElementById('modalRoomName').innerText = info.event.extendedProps.ruang;
                 document.getElementById('modalTime').innerText = info.event.extendedProps.waktu;
                 document.getElementById('modalPic').innerText = info.event.extendedProps.pic;

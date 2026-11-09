@@ -21,9 +21,13 @@ class HomeController extends Controller
             $calendarEvents[] = [
                 'title' => $event->event_name,
                 'start' => $event->date,
+                'backgroundColor' => $event->warna,
+                'borderColor'     => $event->warna,
                 'extendedProps' => [
+                    'jenis'         => $event->label_jenis,
+                    'keterangan'    => $event->jenis['keterangan'],
                     'ruang'         => $event->room ? $event->room->room_name : 'Tidak diketahui',
-                    'waktu'         => 'Sesi ' . $event->start_session . ' - Sesi ' . $event->end_session,
+                    'waktu'         => \App\Support\SesiPeminjaman::labelDenganJam((int) $event->start_session, (int) $event->end_session),
                     'start_session' => $event->start_session,
                     'end_session'   => $event->end_session,
                     'pic'           => ($event->room && $event->room->pic) ? $event->room->pic->fullname : 'Belum ada PIC'
@@ -38,6 +42,9 @@ class HomeController extends Controller
             ->orderBy('start_session', 'asc')
             ->get();
 
-        return view('welcome', compact('calendarEvents', 'upcomingEvents'));
+        // Hari libur nasional (config/hari_libur.php) -> kolom tanggal diberi warna merah
+        $hariLibur = config('hari_libur', []);
+
+        return view('welcome', compact('calendarEvents', 'upcomingEvents', 'hariLibur'));
     }
 }

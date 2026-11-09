@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Room;
 use App\Notifications\PeminjamanNotification;
+use App\Support\SesiPeminjaman;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
 {
     public function publicIndex()
     {
-        $events = Event::with(['room:id,room_name,pic_id', 'room.pic:id,fullname'])
+        $events = Event::with('room:id,room_name')
             ->where('status', 'Approved')
             ->orderBy('date')
             ->orderBy('start_session')
@@ -19,6 +20,7 @@ class EventController extends Controller
                 'id',
                 'room_id',
                 'event_name',
+                'agenda_type',
                 'date',
                 'start_session',
                 'end_session',
@@ -39,6 +41,7 @@ class EventController extends Controller
     {
         $validated = $request->validate([
             'event_name'    => 'required|string|max:255',
+            'agenda_type'   => 'required|in:internal,khusus,guru,umum',
             'room_id'       => 'required|exists:rooms,id',
             'date'          => 'required|date|after_or_equal:today',
             'start_session' => 'required|integer|min:1|max:10',
@@ -48,8 +51,14 @@ class EventController extends Controller
             'move_reason'   => 'nullable|string',
         ], [
             'date.after_or_equal' => 'Tanggal peminjaman harus hari ini atau setelahnya.',
+            'agenda_type.required' => 'Pilih jenis agenda (internal, khusus, guru, atau umum).',
             'end_session.gte' => 'Sesi selesai harus lebih besar atau sama dengan sesi mulai.',
         ]);
+
+        // Sesi yang jamnya sudah terlewat tidak boleh dipinjam
+        if (SesiPeminjaman::sudahLewat($validated['date'], (int) $validated['start_session'])) {
+            return redirect()->back()->withInput()->with('error', 'Gagal diajukan! ' . SesiPeminjaman::labelDropdown((int) $validated['start_session']) . ' sudah terlewat. Pilih sesi yang belum dimulai.');
+        }
 
         $isWaka = auth()->user()->getAttribute('role_id') == 1;
 
@@ -104,6 +113,7 @@ class EventController extends Controller
             'room_id'       => $validated['room_id'],
             'user_id'       => auth()->id(),
             'event_name'    => $validated['event_name'],
+            'agenda_type'   => $validated['agenda_type'],
             'date'          => $validated['date'],
             'start_session' => $validated['start_session'],
             'end_session'   => $validated['end_session'],
@@ -128,6 +138,7 @@ class EventController extends Controller
 
         $request->validate([
             'status'        => 'required|in:Pending,Approved,Rejected',
+            'agenda_type'   => 'nullable|in:internal,khusus,guru,umum',
             'room_id'       => 'required|exists:rooms,id',
             'start_session' => 'nullable|integer|min:1|max:10',
             'end_session'   => 'nullable|integer|min:1|max:10|gte:start_session',
@@ -191,7 +202,8 @@ class EventController extends Controller
             'start_session' => $startSession,
             'end_session'   => $endSession,
             'status'        => $status,
-            'move_reason'   => $request->input('move_reason')
+            'move_reason'   => $request->input('move_reason'),
+            'agenda_type'   => $request->input('agenda_type', $event->getAttribute('agenda_type')),
         ]);
 
         $event->refresh()->load('room');

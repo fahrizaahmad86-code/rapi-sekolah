@@ -34,7 +34,7 @@ class PeminjamanNotification extends Notification
         $event->loadMissing('room');
         $roomName = $event->room->room_name ?? 'ruangan baru';
         $message = 'Peminjaman kegiatan "' . $event->event_name . '" dipindahkan ke '
-            . $roomName . ', sesi ' . $event->start_session . '-' . $event->end_session . '.';
+            . $roomName . ', ' . \App\Support\SesiPeminjaman::labelDenganJam((int) $event->start_session, (int) $event->end_session) . '.';
 
         if ($event->move_reason) {
             $message .= ' Alasan: ' . $event->move_reason;

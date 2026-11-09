@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Complaint;
 use App\Models\Event;
 use App\Models\Room;
+use App\Support\SesiPeminjaman;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class GuruController extends Controller
 {
@@ -68,11 +70,19 @@ class GuruController extends Controller
         $data = $request->validate([
             'room_id' => ['required', 'exists:rooms,id'],
             'event_name' => ['required', 'string', 'max:255'],
-            'date' => ['required', 'date'],
+            'agenda_type' => ['sometimes', Rule::in(array_keys(Event::JENIS_AGENDA))],
+            'date' => ['required', 'date', 'after_or_equal:today'],
             'start_session' => ['required', 'integer', 'min:1', 'max:10'],
             'end_session' => ['required', 'integer', 'min:1', 'max:10', 'gte:start_session'],
             'document_path' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
         ]);
+
+        if (SesiPeminjaman::sudahLewat($data['date'], (int) $data['start_session'])) {
+            return response()->json([
+                'message' => SesiPeminjaman::labelDropdown((int) $data['start_session']).' sudah terlewat. Pilih sesi yang belum dimulai.',
+            ], 422);
+        }
+        $data['agenda_type'] ??= Event::TIPE_INTERNAL;
 
         $conflictExists = Event::where('room_id', $data['room_id'])
             ->where('date', $data['date'])

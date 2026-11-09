@@ -14,6 +14,7 @@ use App\Http\Controllers\OrganisasiController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\CariRuanganController;
 use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\PublicStorageController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -72,6 +73,9 @@ Route::middleware('auth')->group(function () {
         'destroy' => 'pengaduan.destroy',
     ]);
 
+    Route::get('/user/template-guru', [UserController::class, 'templateGuru'])->name('user.template-guru');
+    Route::post('/user/import-guru', [UserController::class, 'importGuru'])->name('user.import-guru');
+
     // Laporan Waka/Admin (bisa dicetak ke PDF)
     Route::get('/laporan/harian', [LaporanController::class, 'harian'])->name('laporan.harian');
     Route::get('/laporan/harian/cetak', [LaporanController::class, 'cetakHarian'])->name('laporan.harian.cetak');
@@ -89,6 +93,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/storage/{path}', [PublicStorageController::class, 'show'])->where('path', '.*')->name('public.storage');
 Route::get('/notifications/{id}/read', function ($id) {
     $notification = auth()->user()->notifications()->findOrFail($id);
     $notification->markAsRead();

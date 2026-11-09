@@ -9,24 +9,35 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             background-color: #F5F5F5; 
-            min-height: 100vh;
+            height: 100vh;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: hidden;
         }
 
         .wrapper {
             display: flex;
             width: 100%;
+            height: 100vh;
+            min-width: 0;
             align-items: stretch;
         }
 
         #sidebar {
+            flex: 0 0 260px;
             min-width: 260px;
             max-width: 260px;
             background-color: #FFFFFF; 
             border-right: 1px solid #E2E8F0; 
             transition: all 0.3s;
-            min-height: 100vh;
+            height: 100vh;
+            min-height: 0;
             display: flex;
             flex-direction: column;
         }
@@ -39,6 +50,8 @@
 
         #sidebar ul.components {
             padding: 15px;
+            min-height: 0;
+            overflow-y: auto;
         }
 
         #sidebar ul li {
@@ -71,9 +84,11 @@
         }
 
         #content {
-            width: 100%;
+            flex: 1 1 0;
+            min-width: 0;
             padding: 30px;
-            min-height: 100vh;
+            height: 100vh;
+            overflow-y: auto;
         }
 
         .btn-logout:hover {
@@ -96,6 +111,122 @@
         }
 
         .dropdown-menu { max-height: 70vh; overflow-y: auto; }
+
+        .notification-menu {
+            width: 320px;
+        }
+
+        .users-table-scroll {
+            max-height: max(220px, calc(100vh - 300px));
+            overflow: auto;
+        }
+
+        .users-table-scroll thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: #F8F9FA;
+        }
+
+        .report-table-scroll,
+        .data-table-scroll {
+            max-height: max(220px, calc(100vh - 360px));
+            overflow: auto;
+        }
+
+        .report-table-scroll thead th,
+        .data-table-scroll thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: #F8F9FA;
+        }
+
+        @media (max-width: 767.98px) {
+            body {
+                height: auto;
+                min-height: 100vh;
+                overflow-y: auto;
+            }
+
+            .wrapper {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            #sidebar {
+                flex: 0 0 auto;
+                width: 100%;
+                min-width: 0;
+                max-width: none;
+                height: auto;
+                min-height: 0;
+                border-right: 0;
+                border-bottom: 1px solid #E2E8F0;
+            }
+
+            #sidebar .sidebar-header {
+                padding: 14px 16px;
+            }
+
+            #sidebar ul.components {
+                display: flex;
+                gap: 4px;
+                margin-bottom: 0;
+                padding: 8px 12px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                white-space: nowrap;
+            }
+
+            #sidebar ul li {
+                flex: 0 0 auto;
+                margin-bottom: 0;
+            }
+
+            #sidebar ul li a {
+                padding: 9px 12px;
+                font-size: 0.9rem;
+            }
+
+            #sidebar > .p-3.border-top {
+                display: flex;
+                gap: 8px;
+                padding: 8px 12px !important;
+            }
+
+            #sidebar > .p-3.border-top > a,
+            #sidebar > .p-3.border-top > form {
+                flex: 1 1 0;
+                margin: 0;
+            }
+
+            #sidebar > .p-3.border-top > form button {
+                justify-content: center;
+            }
+
+            #content {
+                width: 100%;
+                height: auto;
+                min-height: 0;
+                overflow: visible;
+                padding: 16px;
+            }
+
+            .users-table-scroll {
+                max-height: min(60vh, 500px);
+            }
+
+            .report-table-scroll,
+            .data-table-scroll {
+                max-height: min(55vh, 440px);
+            }
+
+            .notification-menu {
+                width: min(320px, calc(100vw - 32px));
+            }
+        }
     </style>
 </head>
 <body>
@@ -257,7 +388,7 @@
                     @endif
                 </button>
 
-                <ul class="dropdown-menu dropdown-menu-end p-2 shadow-lg border-0" style="width: 320px;">
+                <ul class="dropdown-menu dropdown-menu-end p-2 shadow-lg border-0 notification-menu">
                     <li class="dropdown-header fw-bold text-dark border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
                         <span>Notifikasi</span>
                         <span class="badge bg-primary text-white" style="font-size: 0.7rem;">{{ auth()->user()->unreadNotifications->count() }} Baru</span>

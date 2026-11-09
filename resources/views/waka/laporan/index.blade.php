@@ -73,6 +73,7 @@
 
     <div class="card shadow-sm border-0">
         <div class="card-body">
+            @php($scrollTables = true)
             @include('waka.laporan._tabel')
         </div>
     </div>

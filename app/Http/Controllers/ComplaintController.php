@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Complaint;
 use App\Models\Room;
+use App\Models\User;
+use App\Notifications\AssignPicNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ComplaintController extends Controller
 {
@@ -34,8 +37,9 @@ class ComplaintController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         $ruangans = Room::all();
+        $pics = User::where('role_id', 3)->orderBy('fullname')->get();
         
-        return view('waka.pengaduan.index', compact('pengaduans', 'ruangans', 'daftarStatus', 'filter', 'jumlah'));
+        return view('waka.pengaduan.index', compact('pengaduans', 'ruangans', 'pics', 'daftarStatus', 'filter', 'jumlah'));
     }
 
     public function store(Request $request)
@@ -76,9 +80,35 @@ class ComplaintController extends Controller
 
     public function update(Request $request, $id)
     {
-        $complaint = Complaint::findOrFail($id);
+        $roleId = (int) auth()->user()->role_id;
+        if ($roleId === 1) {
+            $complaint = Complaint::findOrFail($id);
+        } elseif ($roleId === 3) {
+            $complaint = Complaint::where('handler_id', auth()->id())->findOrFail($id);
+        } else {
+            return redirect()->back()->with('error', 'Anda tidak memiliki hak akses untuk mengubah data ini.');
+        }
 
-        if (auth()->user()->getAttribute('role_id') == 3) {
+        if ($roleId === 1) {
+            $validated = $request->validate([
+                'handler_id' => ['required', Rule::exists('users', 'id')->where('role_id', 3)],
+            ], [
+                'handler_id.required' => 'PIC wajib dipilih.',
+                'handler_id.exists' => 'PIC yang dipilih tidak valid.',
+            ]);
+
+            $handlerChanged = (int) $complaint->handler_id !== (int) $validated['handler_id'];
+            $complaint->update(['handler_id' => $validated['handler_id']]);
+
+            if ($handlerChanged) {
+                $complaint->loadMissing('room');
+                User::findOrFail($validated['handler_id'])->notify(new AssignPicNotification($complaint));
+            }
+
+            return redirect()->back()->with('success', 'PIC pengaduan berhasil ditugaskan.');
+        }
+
+        if ($roleId === 3) {
             // Sudah diperbaiki + bukti sudah dikirim -> status terkunci
             if ($complaint->isFinished()) {
                 return redirect()->back()->with('error', 'Pengaduan ini sudah selesai diperbaiki dan statusnya tidak dapat diubah lagi.');

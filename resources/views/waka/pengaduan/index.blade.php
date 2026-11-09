@@ -72,6 +72,7 @@
                     </thead>
                     <tbody>
                         @forelse($pengaduans as $index => $pengaduan)
+                            @php $perluDihubungi = auth()->user()->role_id == 1 && $pengaduan->isOverdue(); @endphp
                             <tr>
                                 <td>{{ $index + 1 }}</td>
                                 <td class="fw-semibold">{{ $pengaduan->room->room_name ?? '-' }}</td>
@@ -80,7 +81,7 @@
                                 <td>
                                     <!-- Foto Kerusakan dari Pelapor -->
                                     @if($pengaduan->photo_path)
-                                        <a href="{{ asset('storage/' . $pengaduan->photo_path) }}" target="_blank" class="btn btn-sm btn-outline-primary mb-1">
+                                        <a href="{{ route('public.storage', ['path' => $pengaduan->photo_path]) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary mb-1">
                                             <i class="bi bi-image"></i> Kerusakan
                                         </a>
                                     @endif
@@ -88,7 +89,7 @@
                                     <!-- Foto Bukti Hasil Perbaikan dari PIC -->
                                     @if($pengaduan->completion_photo_path)
                                         <br>
-                                        <a href="{{ asset('storage/' . $pengaduan->completion_photo_path) }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                        <a href="{{ route('public.storage', ['path' => $pengaduan->completion_photo_path]) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">
                                             <i class="bi bi-check-circle"></i> Bukti Perbaikan
                                         </a>
                                     @elseif(!$pengaduan->photo_path)
@@ -106,15 +107,29 @@
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
                                             </form>
+
+                                            @if($perluDihubungi)
+                                                @if($pengaduan->handler && $pengaduan->handler->phone_number)
+                                                    <a href="{{ $pengaduan->handler->waLink() }}" target="_blank" rel="noopener" class="btn btn-sm btn-success" title="Hubungi {{ $pengaduan->handler->fullname }} via WhatsApp">
+                                                        <i class="bi bi-whatsapp"></i> WhatsApp PIC
+                                                    </a>
+                                                @else
+                                                    <button type="button" class="btn btn-sm btn-secondary" disabled title="PIC belum punya nomor WhatsApp (isi di Kelola Pengguna)">
+                                                        <i class="bi bi-whatsapp"></i> WhatsApp PIC
+                                                    </button>
+                                                @endif
+                                            @endif
                                         @elseif(auth()->user()->role_id == 3)
-                                            @if($pengaduan->isFinished())
-                                                <button class="btn btn-sm btn-secondary" disabled title="Sudah diperbaiki dan bukti perbaikan sudah dikirim">
-                                                     Selesai
-                                                </button>
-                                            @else
-                                                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalUpdateStatus{{ $pengaduan->id }}">
-                                                    Update Status
-                                                </button>
+                                            @if((int) $pengaduan->handler_id === (int) auth()->id())
+                                                @if($pengaduan->isFinished())
+                                                    <button class="btn btn-sm btn-secondary" disabled title="Sudah diperbaiki dan bukti perbaikan sudah dikirim">
+                                                        Selesai
+                                                    </button>
+                                                @else
+                                                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalUpdateStatus{{ $pengaduan->id }}">
+                                                        Update Status
+                                                    </button>
+                                                @endif
                                             @endif
                                         @endif
                                     </td>
@@ -122,7 +137,7 @@
                             </tr>
 
                             {{-- Modal Update Status Perbaikan & Upload Foto Bukti oleh PIC Ruangan --}}
-                            @if(auth()->user()->role_id == 3 && !$pengaduan->isFinished())
+                            @if(auth()->user()->role_id == 3 && (int) $pengaduan->handler_id === (int) auth()->id() && !$pengaduan->isFinished())
                             <div class="modal fade" id="modalUpdateStatus{{ $pengaduan->id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
@@ -147,13 +162,13 @@
                                                     <input type="file" name="completion_photo_path" id="foto{{ $pengaduan->id }}" class="form-control"
                                                            accept="image/png, image/jpeg, image/jpg"
                                                            {{ $pengaduan->status_repair == 'Sudah Diperbaiki' ? 'required' : 'disabled' }}>
+                                                    @include('partials.foto-kamera', ['target' => 'foto' . $pengaduan->id])
                                                     <small id="foto{{ $pengaduan->id }}Off" class="text-muted {{ $pengaduan->status_repair == 'Sudah Diperbaiki' ? 'd-none' : '' }}">
                                                         Foto hanya dapat diunggah saat status <strong>Sudah Diperbaiki</strong>.
                                                     </small>
                                                     <small id="foto{{ $pengaduan->id }}On" class="text-muted {{ $pengaduan->status_repair == 'Sudah Diperbaiki' ? '' : 'd-none' }}">
                                                         Format (JPG/PNG, maks. 2MB). Setelah disimpan, status tidak dapat diubah lagi.
                                                     </small>
-                                                    @include('partials.foto-kamera', ['target' => 'foto' . $pengaduan->id])
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
@@ -168,7 +183,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">{{ $filter ? 'Tidak ada laporan dengan status "' . $filter . '".' : 'Belum ada pengaduan kerusakan.' }}</td>
+                                <td colspan="8" class="text-center text-muted py-4">Belum ada pengaduan kerusakan.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -206,8 +221,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Upload Foto Kerusakan</label>
                         <input type="file" name="photo_path" id="fotoLaporKerusakan" class="form-control" accept="image/png, image/jpeg, image/jpg" required>
-                        <small class="text-muted">Format JPG/PNG, Maksimal 2MB.</small>
                         @include('partials.foto-kamera', ['target' => 'fotoLaporKerusakan'])
+                        <small class="text-muted">Format JPG/PNG, Maksimal 2MB.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

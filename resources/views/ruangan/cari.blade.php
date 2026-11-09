@@ -11,6 +11,7 @@
     .sesi-kosong    { background: #DCFCE7; color: #166534; }
     .sesi-approved  { background: #FEE2E2; color: #991B1B; }
     .sesi-pending   { background: #FEF3C7; color: #92400E; }
+    .sesi-lewat     { background: #E5E7EB; color: #6B7280; }
     .legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
     .room-card { border-radius: 12px; }
 </style>
@@ -54,7 +55,7 @@
 
                 <div class="col-md-2 d-flex gap-2">
                     <button type="submit" class="btn text-white fw-semibold flex-grow-1" style="background-color: #0EA5E9; border-radius: 8px;">
-                        <i class="bi bi-search"></i> Cari
+                        Cari
                     </button>
                     <a href="{{ route('cari-ruangan.index') }}" class="btn btn-outline-secondary" style="border-radius: 8px;">Reset</a>
                 </div>
@@ -75,6 +76,7 @@
     <div class="small text-muted mb-3">
         <span class="me-3"><span class="legend-dot sesi-kosong"></span>Kosong</span>
         <span class="me-3"><span class="legend-dot sesi-pending"></span>Diajukan (menunggu persetujuan)</span>
+        <span class="me-3"><span class="legend-dot sesi-lewat"></span>Waktu sudah lewat (tidak bisa dipinjam)</span>
         <span><span class="legend-dot sesi-approved"></span>Sudah dipinjam (disetujui)</span>
     </div>
 
@@ -97,9 +99,9 @@
                         </div>
 
                         <ul class="list-unstyled small text-muted mb-3">
-                            <li><i class="bi bi-people me-2"></i>Kapasitas {{ $room->capacity }} orang</li>
-                            <li><i class="bi bi-geo-alt me-2"></i>{{ $room->location }}</li>
-                            <li><i class="bi bi-person-badge me-2"></i>PIC: {{ $room->pic ? $room->pic->fullname : 'Belum ditentukan' }}</li>
+                            <li>Kapasitas {{ $room->capacity }} orang</li>
+                            <li>{{ $room->location }}</li>
+                            <li>PIC: {{ $room->pic ? $room->pic->fullname : 'Belum ditentukan' }}</li>
                         </ul>
 
                         {{-- Peta 10 sesi pada tanggal terpilih --}}
@@ -107,12 +109,15 @@
                         <div class="sesi-strip mb-3">
                             @foreach($room->peta_sesi as $no => $st)
                                 @php
-                                    $kelas = $st === 'Approved' ? 'sesi-approved' : ($st === 'Pending' ? 'sesi-pending' : 'sesi-kosong');
-                                    $ket = $st === 'Approved' ? 'dipinjam' : ($st === 'Pending' ? 'diajukan' : 'kosong');
+                                    $kelas = $st === 'Approved' ? 'sesi-approved' : ($st === 'Pending' ? 'sesi-pending' : ($st === 'Lewat' ? 'sesi-lewat' : 'sesi-kosong'));
+                                    $ket = $st === 'Approved' ? 'dipinjam' : ($st === 'Pending' ? 'diajukan' : ($st === 'Lewat' ? 'waktu sudah lewat' : 'kosong'));
                                 @endphp
                                 <div class="sesi-box {{ $kelas }}" title="Sesi {{ $no }} ({{ $daftarSesi[$no] }}): {{ $ket }}">{{ $no }}</div>
                             @endforeach
                         </div>
+                        @if($room->is_active && $room->tanpa_sesi_tersedia)
+                            <div class="small text-muted mb-3"><i class="bi bi-clock-history me-1"></i>Tidak ada sesi yang bisa dipinjam lagi pada tanggal ini.</div>
+                        @endif
 
                         {{-- Daftar peminjaman pada tanggal ini --}}
                         @if($room->jadwal_hari_ini->isNotEmpty())

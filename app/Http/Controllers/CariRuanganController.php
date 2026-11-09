@@ -53,21 +53,29 @@ class CariRuanganController extends Controller
             ->get()
             ->groupBy('room_id');
 
+        // ---- Sesi mana yang jamnya sudah terlewat pada tanggal terpilih (real-time) ----
+        $sesiLewat = [];
+        for ($s = 1; $s <= SesiPeminjaman::JUMLAH; $s++) {
+            $sesiLewat[$s] = SesiPeminjaman::sudahLewat($tanggal, $s);
+        }
+
         // ---- Hitung keadaan tiap ruangan ----
-        $rooms = $rooms->map(function ($room) use ($jadwalPerRuangan) {
+        $rooms = $rooms->map(function ($room) use ($jadwalPerRuangan, $sesiLewat) {
             $jadwal = $jadwalPerRuangan->get($room->id, collect());
 
-            // Peta 10 sesi: kosong / Pending / Approved
+            // Peta 10 sesi: Approved / Pending / Lewat (kosong tapi jamnya sudah lewat) / null (kosong & masih bisa dipinjam)
             $peta = [];
             for ($s = 1; $s <= SesiPeminjaman::JUMLAH; $s++) {
                 $pakai = $jadwal->first(function ($event) use ($s) {
                     return $event->start_session <= $s && $event->end_session >= $s;
                 });
-                $peta[$s] = $pakai ? $pakai->status : null;
+                $peta[$s] = $pakai ? $pakai->status : ($sesiLewat[$s] ? 'Lewat' : null);
             }
 
             $room->jadwal_hari_ini = $jadwal;
             $room->peta_sesi       = $peta;
+            // Tidak ada lagi sesi yang bisa dipinjam (semua sudah terpakai atau sudah lewat)
+            $room->tanpa_sesi_tersedia = !in_array(null, $peta, true);
             // Kosong = aktif dan tidak ada peminjaman sama sekali pada tanggal itu
             $room->kosong          = $room->is_active && $jadwal->isEmpty();
 

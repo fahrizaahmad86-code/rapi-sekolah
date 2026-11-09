@@ -10,6 +10,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Notifications\AssignPicNotification;
 use App\Notifications\PeminjamanNotification;
+use App\Support\SesiPeminjaman;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -52,6 +53,7 @@ class WakaController extends Controller
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'password' => ['required', 'string', 'min:6'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone_number' => ['required_if:role_id,3', 'nullable', 'regex:/^(\+62|62|0)\s*8[0-9\s\-]{7,15}$/'],
             'role_id' => ['required', 'exists:roles,id'],
         ]);
         $data['email'] = strtolower($data['email']);
@@ -71,6 +73,7 @@ class WakaController extends Controller
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:6'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'phone_number' => ['required_if:role_id,3', 'nullable', 'regex:/^(\+62|62|0)\s*8[0-9\s\-]{7,15}$/'],
             'role_id' => ['required', 'exists:roles,id'],
         ]);
         if (empty($data['password'])) {
@@ -171,13 +174,17 @@ class WakaController extends Controller
         $data = $request->validate([
             'room_id' => ['required', 'exists:rooms,id'],
             'event_name' => ['required', 'string', 'max:255'],
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'after_or_equal:today'],
             'start_session' => ['required', 'integer', 'min:1', 'max:10'],
             'end_session' => ['required', 'integer', 'min:1', 'max:10', 'gte:start_session'],
             'document_path' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'new_room_id' => ['nullable', 'exists:rooms,id'],
             'move_reason' => ['nullable', 'string'],
         ]);
+
+        if (SesiPeminjaman::sudahLewat($data['date'], (int) $data['start_session'])) {
+            abort(422, SesiPeminjaman::labelDropdown((int) $data['start_session']).' sudah terlewat. Pilih sesi yang belum dimulai.');
+        }
 
         return DB::transaction(function () use ($request, $data) {
             $conflict = Event::where('room_id', $data['room_id'])
