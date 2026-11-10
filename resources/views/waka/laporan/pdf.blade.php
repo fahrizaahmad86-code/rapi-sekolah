@@ -1,6 +1,6 @@
 @php
     use App\Support\SesiPeminjaman;
-    $tampilTanggal = $mode === 'bulanan';
+    $tampilTanggal = $mode !== 'harian';
     $labelEvent = ['Pending' => 'Menunggu', 'Approved' => 'Disetujui', 'Rejected' => 'Ditolak'];
 @endphp
 <!DOCTYPE html>

@@ -2,13 +2,15 @@
 
 @section('content')
 @php
-    $harian = $mode === 'harian';
-    $nilaiTanggal = $harian ? $tanggal->format('Y-m-d') : null;
+    $harian = in_array($mode, ['harian', 'rentang']);
+    $nilaiDari = $harian ? $dari->format('Y-m-d') : null;
+    $nilaiSampai = $harian ? $sampai->format('Y-m-d') : null;
+    $panjangHari = $harian ? ((int) $dari->diffInDays($sampai) + 1) : 1;
     $tahunAktif = $harian ? null : (int) $bulan->format('Y');
     $bulanAktif = $harian ? null : (int) $bulan->format('n');
     $namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     $urlPdf = $harian
-        ? route('laporan.harian.pdf', ['tanggal' => $nilaiTanggal])
+        ? route('laporan.harian.pdf', ['dari' => $nilaiDari, 'sampai' => $nilaiSampai])
         : route('laporan.bulanan.pdf', ['bulan' => $bulan->format('Y-m')]);
 @endphp
 
@@ -21,11 +23,15 @@
 
         <div class="d-flex flex-wrap align-items-center gap-2">
             @if($harian)
-                {{-- Kalender kecil: klik untuk memunculkan kalender, pilih tanggal otomatis memuat laporan --}}
-                <form method="GET" action="{{ route('laporan.harian') }}" id="formPeriode" class="d-flex align-items-center gap-2">
-                    <a href="{{ route('laporan.harian', ['tanggal' => $tanggal->copy()->subDay()->format('Y-m-d')]) }}" class="btn btn-outline-secondary btn-sm" title="Hari sebelumnya"><i class="bi bi-chevron-left"></i></a>
-                    <input type="date" name="tanggal" id="inputTanggal" value="{{ $nilaiTanggal }}" class="form-control form-control-sm" style="width:auto; cursor:pointer;" onchange="this.form.submit()" onclick="try{this.showPicker()}catch(e){}">
-                    <a href="{{ route('laporan.harian', ['tanggal' => $tanggal->copy()->addDay()->format('Y-m-d')]) }}" class="btn btn-outline-secondary btn-sm" title="Hari berikutnya"><i class="bi bi-chevron-right"></i></a>
+                {{-- Pilih rentang tanggal (Dari - Sampai). Jika sama = laporan satu hari. --}}
+                <form method="GET" action="{{ route('laporan.harian') }}" id="formPeriode" class="d-flex flex-wrap align-items-center gap-2">
+                    <a href="{{ route('laporan.harian', ['dari' => $dari->copy()->subDays($panjangHari)->format('Y-m-d'), 'sampai' => $sampai->copy()->subDays($panjangHari)->format('Y-m-d')]) }}" class="btn btn-outline-secondary btn-sm" title="Periode sebelumnya"><i class="bi bi-chevron-left"></i></a>
+                    <label for="inputDari" class="small text-muted mb-0">Dari</label>
+                    <input type="date" name="dari" id="inputDari" value="{{ $nilaiDari }}" max="{{ $nilaiSampai }}" class="form-control form-control-sm" style="width:auto; cursor:pointer;" onclick="try{this.showPicker()}catch(e){}">
+                    <label for="inputSampai" class="small text-muted mb-0">Sampai</label>
+                    <input type="date" name="sampai" id="inputSampai" value="{{ $nilaiSampai }}" min="{{ $nilaiDari }}" class="form-control form-control-sm" style="width:auto; cursor:pointer;" onclick="try{this.showPicker()}catch(e){}">
+                    <button type="submit" class="btn text-white fw-semibold btn-sm px-3" style="background-color:#0EA5E9; border-radius:8px;">Terapkan</button>
+                    <a href="{{ route('laporan.harian', ['dari' => $dari->copy()->addDays($panjangHari)->format('Y-m-d'), 'sampai' => $sampai->copy()->addDays($panjangHari)->format('Y-m-d')]) }}" class="btn btn-outline-secondary btn-sm" title="Periode berikutnya"><i class="bi bi-chevron-right"></i></a>
                     <a href="{{ route('laporan.harian') }}" class="btn btn-outline-primary btn-sm">Hari Ini</a>
                 </form>
             @else
@@ -79,7 +85,23 @@
     </div>
 </div>
 
-@if(!$harian)
+@if($harian)
+<script>
+    (function () {
+        var dari = document.getElementById('inputDari');
+        var sampai = document.getElementById('inputSampai');
+        if (!dari || !sampai) return;
+        dari.addEventListener('change', function () {
+            sampai.min = dari.value;
+            if (sampai.value && sampai.value < dari.value) sampai.value = dari.value;
+        });
+        sampai.addEventListener('change', function () {
+            dari.max = sampai.value;
+            if (dari.value && dari.value > sampai.value) dari.value = sampai.value;
+        });
+    })();
+</script>
+@else
 <script>
     (function () {
         var tahun = {{ $tahunAktif }};

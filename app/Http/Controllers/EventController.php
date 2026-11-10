@@ -49,7 +49,7 @@ class EventController extends Controller
             'document_path' => 'required|image|mimes:jpeg,png,jpg|max:2048',
         ], [
             'date.after_or_equal' => 'Tanggal peminjaman harus hari ini atau setelahnya.',
-            'agenda_type.required' => 'Pilih jenis agenda (internal, khusus, guru, atau umum).',
+            'agenda_type.required' => 'Pilih jenis agenda (internal, khusus, guru, umum, atau tambahan).',
             'end_session.gte' => 'Sesi selesai harus lebih besar atau sama dengan sesi mulai.',
         ]);
 

@@ -2,7 +2,7 @@
      Variabel: $mode, $peminjaman, $pengaduan --}}
 @php
     use App\Support\SesiPeminjaman;
-    $tampilTanggal = $mode === 'bulanan';
+    $tampilTanggal = $mode !== 'harian';
     $badgeEvent = ['Pending' => 'warning text-dark', 'Approved' => 'success', 'Rejected' => 'danger'];
     $labelEvent = ['Pending' => 'Menunggu', 'Approved' => 'Disetujui', 'Rejected' => 'Ditolak'];
     $badgeRepair = ['Belum Diperbaiki' => 'danger', 'Menunggu Spare Part' => 'warning text-dark', 'Sudah Diperbaiki' => 'success'];

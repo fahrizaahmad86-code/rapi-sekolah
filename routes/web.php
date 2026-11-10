@@ -78,11 +78,9 @@ Route::middleware('auth')->group(function () {
 
     // Laporan Waka/Admin (bisa dicetak ke PDF)
     Route::get('/laporan/harian', [LaporanController::class, 'harian'])->name('laporan.harian');
-    Route::get('/laporan/harian/cetak', [LaporanController::class, 'cetakHarian'])->name('laporan.harian.cetak');
     Route::get('/laporan/harian/pdf', [LaporanController::class, 'pdfHarian'])->name('laporan.harian.pdf');
     Route::get('/laporan/bulanan/pdf', [LaporanController::class, 'pdfBulanan'])->name('laporan.bulanan.pdf');
     Route::get('/laporan/bulanan', [LaporanController::class, 'bulanan'])->name('laporan.bulanan');
-    Route::get('/laporan/bulanan/cetak', [LaporanController::class, 'cetakBulanan'])->name('laporan.bulanan.cetak');
 
     Route::resource('/user', UserController::class)->names([
         'index'   => 'user.index',

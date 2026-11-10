@@ -16,18 +16,43 @@ class LaporanController extends Controller
         abort_unless(auth()->check() && auth()->user()->role_id == 1, 403, 'Halaman ini hanya untuk Waka/Admin.');
     }
 
-    /** Ambil tanggal dari ?tanggal=YYYY-MM-DD, default hari ini. */
-    private function ambilTanggal(Request $request): Carbon
+    /**
+     * Ambil rentang tanggal dari ?dari=YYYY-MM-DD&sampai=YYYY-MM-DD.
+     * Kompatibel dengan ?tanggal=YYYY-MM-DD (satu hari). Default: hari ini.
+     * Jika "sampai" lebih awal dari "dari", keduanya ditukar. Maksimal 366 hari.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function ambilRentang(Request $request): array
     {
-        try {
-            $t = Carbon::createFromFormat('Y-m-d', (string) $request->query('tanggal'));
-            if ($t === false) {
-                throw new \Exception();
+        $baca = function (string $kunci) use ($request): ?Carbon {
+            try {
+                $t = Carbon::createFromFormat('Y-m-d', (string) $request->query($kunci));
+                return $t ? $t->startOfDay() : null;
+            } catch (\Throwable $e) {
+                return null;
             }
-            return $t->startOfDay()->locale('id');
-        } catch (\Throwable $e) {
-            return Carbon::today()->locale('id');
+        };
+
+        $dari   = $baca('dari') ?? $baca('tanggal');
+        $sampai = $baca('sampai') ?? $baca('tanggal');
+
+        $dari   = $dari ?? $sampai;
+        $sampai = $sampai ?? $dari;
+
+        if (!$dari) {
+            $dari = $sampai = Carbon::today();
         }
+
+        if ($sampai->lt($dari)) {
+            [$dari, $sampai] = [$sampai, $dari];
+        }
+
+        if ((int) $dari->diffInDays($sampai) > 366) {
+            $sampai = $dari->copy()->addDays(366);
+        }
+
+        return [$dari->locale('id'), $sampai->locale('id')];
     }
 
     /** Ambil bulan dari ?bulan=YYYY-MM, default bulan ini. */
@@ -65,15 +90,20 @@ class LaporanController extends Controller
 
     private function payloadHarian(Request $request): array
     {
-        $tanggal = $this->ambilTanggal($request);
+        [$dari, $sampai] = $this->ambilRentang($request);
+        $satuHari = $dari->isSameDay($sampai);
 
         return [
-            'mode'       => 'harian',
-            'tanggal'    => $tanggal,
+            'mode'       => $satuHari ? 'harian' : 'rentang',
+            'tanggal'    => $dari,
+            'dari'       => $dari,
+            'sampai'     => $sampai,
             'judul'      => 'Laporan Harian',
-            'periode'    => $tanggal->isoFormat('dddd, D MMMM YYYY'),
-            'peminjaman' => $this->dataPeminjaman($tanggal, $tanggal),
-            'pengaduan'  => $this->dataPengaduan($tanggal, $tanggal),
+            'periode'    => $satuHari
+                ? $dari->isoFormat('dddd, D MMMM YYYY')
+                : $dari->isoFormat('D MMMM YYYY') . ' s/d ' . $sampai->isoFormat('D MMMM YYYY'),
+            'peminjaman' => $this->dataPeminjaman($dari, $sampai),
+            'pengaduan'  => $this->dataPengaduan($dari, $sampai),
         ];
     }
 
@@ -81,12 +111,6 @@ class LaporanController extends Controller
     {
         $this->pastikanWaka();
         return view('waka.laporan.index', $this->payloadHarian($request));
-    }
-
-    public function cetakHarian(Request $request)
-    {
-        $this->pastikanWaka();
-        return view('waka.laporan.cetak', $this->payloadHarian($request));
     }
 
     // ---------- BULANAN ----------
@@ -112,12 +136,6 @@ class LaporanController extends Controller
         return view('waka.laporan.index', $this->payloadBulanan($request));
     }
 
-    public function cetakBulanan(Request $request)
-    {
-        $this->pastikanWaka();
-        return view('waka.laporan.cetak', $this->payloadBulanan($request));
-    }
-
     // ---------- UNDUH PDF LANGSUNG ----------
 
     private function unduh(array $data, string $namaFile)
@@ -131,7 +149,10 @@ class LaporanController extends Controller
     {
         $this->pastikanWaka();
         $data = $this->payloadHarian($request);
-        return $this->unduh($data, 'laporan-harian-' . $data['tanggal']->format('Y-m-d') . '.pdf');
+        $nama = $data['dari']->isSameDay($data['sampai'])
+            ? $data['dari']->format('Y-m-d')
+            : $data['dari']->format('Y-m-d') . '_sd_' . $data['sampai']->format('Y-m-d');
+        return $this->unduh($data, 'laporan-harian-' . $nama . '.pdf');
     }
 
     public function pdfBulanan(Request $request)
