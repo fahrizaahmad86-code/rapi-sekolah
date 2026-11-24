@@ -16,6 +16,26 @@
         </div>
     @endif
 
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ route('ruangan.index') }}" class="d-flex gap-2 align-items-center">
+            <div class="col">
+                <input type="text" name="q" class="form-control flex-grow-1" placeholder="Cari berdasarkan ruangan, kapasitas, atau lokasi..." value="{{ request('q') }}">
+            </div>
+            <div class="col-auto d-flex gap-2">
+                <button type="submit" class="btn text-white fw-semibold px-4" style="background-color: #0EA5E9; border-radius: 8px; white-space: nowrap;">
+                    Cari
+                </button>
+                <div class="col-auto">
+                    <a href="{{ route('ruangan.index') }}" class="btn btn-outline-secondary" style="border-radius: 8px;">
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
     <div class="card shadow-sm border-0">
         <div class="card-body">
             <div class="table-responsive">

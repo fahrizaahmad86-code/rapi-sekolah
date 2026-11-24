@@ -27,6 +27,11 @@ class GuruImport
             return;
         }
 
+        $namaTerdaftar = User::where('role_id', $roleGuruId)
+            ->pluck('fullname')
+            ->mapWithKeys(fn ($nama) => [$this->normalisasiNama($nama) => true])
+            ->all();
+
         $reader = match (strtolower($extension)) {
             'xlsx' => new XlsxReader(),
             'csv' => new CsvReader(),
@@ -103,7 +108,10 @@ class GuruImport
                     if ($data['email'] !== null && isset($emailDiFile[$data['email']])) {
                         $errors[] = 'Email dobel di dalam file';
                     }
-
+                    $kunciNama = $this->normalisasiNama($data['fullname']);
+                    if ($kunciNama !== '' && isset($namaTerdaftar[$kunciNama])) {
+                    $errors[] = 'Guru dengan nama ini sudah terdaftar';
+                    }
                     if ($errors !== []) {
                         $this->gagal[] = "Baris {$baris} ({$data['fullname']}): " . implode(', ', array_unique($errors));
                         continue;
@@ -119,7 +127,7 @@ class GuruImport
                         ]);
                     });
 
-                    $usernameDiFile[$data['username']] = true;
+                    $usernameDiFile[$data['username']] = true; $namaTerdaftar[$this->normalisasiNama($data['fullname'])] = true;
                     if ($data['email'] !== null) {
                         $emailDiFile[$data['email']] = true;
                     }
@@ -184,5 +192,10 @@ class GuruImport
         }
 
         return $username;
+    }
+
+    private function normalisasiNama(string $nama): string
+    {
+    return preg_replace('/\s+/u', ' ', mb_strtolower(trim($nama)));
     }
 }

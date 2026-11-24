@@ -10,11 +10,25 @@ use Illuminate\Http\Request;
 
 class RoomController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $ruangans = Room::with('pic')->get();
+        $keyword = $request->get('q');
+
+        $ruangans = Room::with('pic')
+         ->when($keyword, function ($query, $keyword) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('room_name', 'like', "%{$keyword}%")
+                  ->orWhere('capacity', 'like', "%{$keyword}%") 
+                  ->orWhere('location', 'like', "%{$keyword}%")
+                    ->orWhereHas('pic', function ($qPic) use ($keyword) {
+                        $qPic->where('fullname', 'like', "%{$keyword}%");
+                    });
+            });
+         })
+        ->get();
+
         $pics = User::where('role_id', 3)->get(); 
-        return view('waka.ruangan.index', compact('ruangans', 'pics'));
+        return view('waka.ruangan.index', compact('ruangans', 'pics', 'keyword'));
     }
     
     public function update(Request $request, $id)

@@ -16,8 +16,8 @@ class AuthController extends Controller
     {
         // Validasi inputan
         $credentials = $request->validate([
-            'username' => ['required'],
-            'password' => ['required'],
+            'username' => ['required', 'string', 'max:50', 'regex:/^\S*$/u'],
+            'password' => ['required', 'string', 'max:30'],
         ]);
 
         // Cek apakah username dan password cocok dengan di database

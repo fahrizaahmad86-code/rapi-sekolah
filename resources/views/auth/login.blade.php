@@ -107,7 +107,15 @@
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
             <div class="input-group">
-                <input type="text" name="username" id="username" class="form-control @error('username') is-invalid @enderror" placeholder="Masukkan username" value="{{ old('username') }}" required autofocus>
+                <input type="text" 
+                       name="username" 
+                       id="username" 
+                       class="form-control @error('username') is-invalid @enderror" 
+                       placeholder="Masukkan username" 
+                       value="{{ old('username') }}" 
+                       maxlength="50"
+                       onkeypress="return event.charCode != 32"
+                       required autofocus>
             </div>
             @error('username')
                 <div class="invalid-feedback d-block mt-1">
@@ -119,7 +127,13 @@
         <!-- Password Input -->
         <div class="mb-4">
             <label for="password" class="form-label">Password</label>
-            <input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror" placeholder="Masukkan password" required>
+            <input type="password" 
+                   name="password" 
+                   id="password" 
+                   class="form-control @error('password') is-invalid @enderror" 
+                   placeholder="Masukkan password" 
+                   maxlength="30"
+                   required>
             @error('password')
                 <div class="invalid-feedback d-block mt-1">
                     {{ $message }}

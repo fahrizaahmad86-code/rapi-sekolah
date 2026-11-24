@@ -125,7 +125,7 @@
             position: sticky;
             top: 0;
             z-index: 1;
-            background-color: #F8F9FA;
+            background-color: #fafaf8;
         }
 
         .report-table-scroll,
@@ -139,7 +139,7 @@
             position: sticky;
             top: 0;
             z-index: 1;
-            background-color: #F8F9FA;
+            background-color: #fafaf8;
         }
 
         @media (max-width: 767.98px) {

@@ -6,7 +6,7 @@
         <div class="card-body p-4">
             <h4 class="fw-bold mb-3">Selamat Datang, Guru!</h4>
             <p class="text-muted mb-4">
-                Ini adalah halaman panel kendali utama. Anda masuk dengan hak akses sebagai <strong>Guru</strong>. Anda dapat memgajukan peminjaman ruang, dan melaporkan kerusakan fasilitas di sini.
+                Ini adalah halaman panel kendali utama. Anda masuk dengan hak akses sebagai <strong>Guru</strong>. Anda dapat mencari ruangan, mengajukan peminjaman ruang, dan melaporkan kerusakan fasilitas di sini.
             </p>
         </div>
     </div>

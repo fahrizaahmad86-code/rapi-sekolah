@@ -280,7 +280,7 @@
                         <small class="text-muted d-block mt-1" id="contohAgendaType"></small>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Tanggal Kegiatan</label>
+                        <label for="tanggalPinjam" class="form-label fw-bold">Tanggal Kegiatan</label>
                         <input type="date" name="date" id="tanggalPinjam" class="form-control" min="{{ now()->toDateString() }}" required>
                     </div>
                     <div class="row">

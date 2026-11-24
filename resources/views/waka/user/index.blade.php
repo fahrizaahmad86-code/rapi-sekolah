@@ -50,6 +50,27 @@
     </div>
 @endif
 
+{{-- ===================== FORM PENCARIAN USER ===================== --}}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ route('user.index') }}" class="d-flex gap-2 align-items-center">
+            <div class="col">
+                <input type="text" name="q" class="form-control flex-grow-1" placeholder="Cari berdasarkan nama, username, atau email..." value="{{ request('q') }}">
+            </div>
+            <div class="col-auto d-flex gap-2">
+                <button type="submit" class="btn text-white fw-semibold px-4" style="background-color: #0EA5E9; border-radius: 8px; white-space: nowrap;">
+                    Cari
+                </button>
+                <div class="col-auto">
+                    <a href="{{ route('user.index') }}" class="btn btn-outline-secondary" style="border-radius: 8px;">
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm">
     <div class="card-body p-2 p-md-4">
         <div class="table-responsive">
@@ -184,7 +205,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Import Data</button>
+                    <button type="submit" class="btn text-white fw-semibold px-4" style="background-color: #0EA5E9; border-radius: 8px;">Import Data</button>
                 </div>
             </form>
         </div>

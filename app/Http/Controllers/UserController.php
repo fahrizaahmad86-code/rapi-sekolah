@@ -11,16 +11,27 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         
         if (auth()->user()->role_id != 1) {
             return redirect()->back()->with('error', 'Akses ditolak.');
         }
+        $keyword = $request->get('q');
 
-        $users = User::with('role')->get();
+        $users = User::with('role')
+         ->when($keyword, function ($query, $keyword) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('fullname', 'like', "%{$keyword}%")
+                  ->orWhere('username', 'like', "%{$keyword}%")
+                  ->orWhere('email', 'like', "%{$keyword}%");
+            });
+        })
+        ->orderBy('fullname', 'asc')
+        ->get();
+
         $roles = Role::all();
-        return view('waka.user.index', compact('users', 'roles'));
+        return view('waka.user.index', compact('users', 'roles', 'keyword'));
     }
 
     public function store(Request $request)
