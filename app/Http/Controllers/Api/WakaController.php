@@ -10,7 +10,6 @@ use App\Models\Room;
 use App\Models\User;
 use App\Notifications\AssignPicNotification;
 use App\Notifications\PeminjamanNotification;
-use App\Support\SesiPeminjaman;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -53,7 +52,6 @@ class WakaController extends Controller
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'password' => ['required', 'string', 'min:6'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone_number' => ['required_if:role_id,3', 'nullable', 'regex:/^(\+62|62|0)\s*8[0-9\s\-]{7,15}$/'],
             'role_id' => ['required', 'exists:roles,id'],
         ]);
         $data['email'] = strtolower($data['email']);
@@ -73,7 +71,6 @@ class WakaController extends Controller
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:6'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'phone_number' => ['required_if:role_id,3', 'nullable', 'regex:/^(\+62|62|0)\s*8[0-9\s\-]{7,15}$/'],
             'role_id' => ['required', 'exists:roles,id'],
         ]);
         if (empty($data['password'])) {
@@ -162,7 +159,7 @@ class WakaController extends Controller
                 ->orderByDesc('start_session')
                 ->get()
                 ->map(fn (Event $event) => $event->toArray() + [
-                    'document_url' => $event->document_path ? route('public.storage', ['path' => $event->document_path]) : null,
+                    'document_url' => $event->document_path ? url('storage/'.$event->document_path) : null,
                 ]),
             'rooms' => Room::where('is_active', true)->orderBy('room_name')->get(['id', 'room_name', 'capacity']),
         ]);
@@ -174,17 +171,13 @@ class WakaController extends Controller
         $data = $request->validate([
             'room_id' => ['required', 'exists:rooms,id'],
             'event_name' => ['required', 'string', 'max:255'],
-            'date' => ['required', 'date', 'after_or_equal:today'],
+            'date' => ['required', 'date'],
             'start_session' => ['required', 'integer', 'min:1', 'max:10'],
             'end_session' => ['required', 'integer', 'min:1', 'max:10', 'gte:start_session'],
             'document_path' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'new_room_id' => ['nullable', 'exists:rooms,id'],
             'move_reason' => ['nullable', 'string'],
         ]);
-
-        if (SesiPeminjaman::sudahLewat($data['date'], (int) $data['start_session'])) {
-            abort(422, SesiPeminjaman::labelDropdown((int) $data['start_session']).' sudah terlewat. Pilih sesi yang belum dimulai.');
-        }
 
         return DB::transaction(function () use ($request, $data) {
             $conflict = Event::where('room_id', $data['room_id'])
@@ -259,6 +252,11 @@ class WakaController extends Controller
             || (int) $event->end_session !== (int) $data['end_session'];
         $statusChanged = $event->status !== $data['status'];
 
+        // Status yang sudah Approved bersifat final: tidak boleh diubah kembali ke Pending/Rejected
+        if ($event->status === 'Approved' && $data['status'] !== 'Approved') {
+            abort(422, 'Peminjaman yang sudah disetujui (Approved) tidak dapat diubah kembali ke Pending atau Rejected.');
+        }
+
         if ($data['status'] === 'Approved') {
             $approvedConflict = Event::where('room_id', $data['room_id'])
                 ->where('date', $event->date)
@@ -322,9 +320,9 @@ class WakaController extends Controller
                 'reporter:id,fullname',
                 'handler:id,fullname',
             ])->orderByDesc('created_at')->get()->map(fn (Complaint $complaint) => $complaint->toArray() + [
-                'photo_url' => $complaint->photo_path ? route('public.storage', ['path' => $complaint->photo_path]) : null,
+                'photo_url' => $complaint->photo_path ? url('storage/'.$complaint->photo_path) : null,
                 'completion_photo_url' => $complaint->completion_photo_path
-                    ? route('public.storage', ['path' => $complaint->completion_photo_path])
+                    ? url('storage/'.$complaint->completion_photo_path)
                     : null,
             ]),
             'rooms' => Room::orderBy('room_name')->get(['id', 'room_name']),

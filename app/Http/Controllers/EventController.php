@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Room;
 use App\Notifications\PeminjamanNotification;
-use App\Support\SesiPeminjaman;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
@@ -20,7 +19,6 @@ class EventController extends Controller
                 'id',
                 'room_id',
                 'event_name',
-                'agenda_type',
                 'date',
                 'start_session',
                 'end_session',
@@ -41,22 +39,17 @@ class EventController extends Controller
     {
         $validated = $request->validate([
             'event_name'    => 'required|string|max:255',
-            'agenda_type'   => 'required|in:internal,khusus,guru,umum',
             'room_id'       => 'required|exists:rooms,id',
             'date'          => 'required|date|after_or_equal:today',
             'start_session' => 'required|integer|min:1|max:10',
             'end_session'   => 'required|integer|min:1|max:10|gte:start_session',
             'document_path' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'new_room_id'   => 'nullable|exists:rooms,id',
+            'move_reason'   => 'nullable|string',
         ], [
             'date.after_or_equal' => 'Tanggal peminjaman harus hari ini atau setelahnya.',
-            'agenda_type.required' => 'Pilih jenis agenda (internal, khusus, guru, umum, atau tambahan).',
             'end_session.gte' => 'Sesi selesai harus lebih besar atau sama dengan sesi mulai.',
         ]);
-
-        // Sesi yang jamnya sudah terlewat tidak boleh dipinjam
-        if (SesiPeminjaman::sudahLewat($validated['date'], (int) $validated['start_session'])) {
-            return redirect()->back()->withInput()->with('error', 'Gagal diajukan! ' . SesiPeminjaman::labelDropdown((int) $validated['start_session']) . ' sudah terlewat. Pilih sesi yang belum dimulai.');
-        }
 
         $isWaka = auth()->user()->getAttribute('role_id') == 1;
 
@@ -70,10 +63,39 @@ class EventController extends Controller
             })
             ->first();
 
-        // 2. Tolak semua peminjaman yang bentrok. Perpindahan agenda lama
-        // dapat dilakukan terpisah melalui fitur pindah yang tersedia.
-        if ($conflictingEvent) {
+        // 2. Jika bukan Waka dan terjadi bentrok -> Tolak
+        if (!$isWaka && $conflictingEvent) {
             return redirect()->back()->withInput()->with('error', 'Gagal diajukan! Ruangan sudah dipinjam/diajukan pada sesi tersebut.');
+        }
+
+        // 3. Jika Waka dan terjadi bentrok -> Relokasi / Pemindahan Ruangan
+        if ($isWaka && $conflictingEvent) {
+            if (!$request->filled('new_room_id') || !$request->filled('move_reason')) {
+                return redirect()->back()->withInput()->with('error', 'Ruangan ini sudah dipinjam (' . $conflictingEvent->getAttribute('event_name') . '). Harap pilih Ruangan Pengganti dan isi Alasan Pemindahan.');
+            }
+
+            // Cek apakah ruangan pengganti juga sedang terpakai pada sesi tersebut
+            $isNewRoomBusy = Event::where('room_id', $validated['new_room_id'])
+                ->where('date', $validated['date'])
+                ->where('status', '!=', 'Rejected')
+                ->where('id', '!=', $conflictingEvent->getAttribute('id'))
+                ->where(function ($query) use ($conflictingEvent) {
+                    $query->where('start_session', '<=', $conflictingEvent->getAttribute('end_session'))
+                          ->where('end_session', '>=', $conflictingEvent->getAttribute('start_session'));
+                })
+                ->exists();
+
+            if ($isNewRoomBusy) {
+                return redirect()->back()->withInput()->with('error', 'Ruangan pengganti yang Anda pilih juga sedang dipinjam pada sesi tersebut. Silakan pilih ruangan lain.');
+            }
+
+            // Pindahkan peminjaman sebelumnya ke ruangan baru beserta alasannya
+            $conflictingEvent->update([
+                'room_id'     => $validated['new_room_id'],
+                'move_reason' => $validated['move_reason'],
+            ]);
+            $conflictingEvent->refresh()->load('room');
+            $conflictingEvent->user->notify(PeminjamanNotification::moved($conflictingEvent));
         }
 
         $suratPath = $request->file('document_path')->store('peminjaman', 'public');
@@ -82,7 +104,6 @@ class EventController extends Controller
             'room_id'       => $validated['room_id'],
             'user_id'       => auth()->id(),
             'event_name'    => $validated['event_name'],
-            'agenda_type'   => $validated['agenda_type'],
             'date'          => $validated['date'],
             'start_session' => $validated['start_session'],
             'end_session'   => $validated['end_session'],
@@ -90,9 +111,11 @@ class EventController extends Controller
             'status'        => $isWaka ? 'Approved' : 'Pending',
         ]);
 
-        $pesanSukses = $isWaka
-            ? 'Agenda Waka berhasil dibuat dan langsung disetujui.'
-            : 'Pengajuan peminjaman berhasil dibuat.';
+        $pesanSukses = ($isWaka && $conflictingEvent)
+            ? 'Agenda Waka berhasil dibuat, dan peminjaman (' . $conflictingEvent->getAttribute('event_name') . ') telah dipindahkan ke ruangan pengganti.'
+            : ($isWaka 
+                ? 'Agenda Waka berhasil dibuat dan langsung disetujui.' 
+                : 'Pengajuan peminjaman berhasil dibuat.');
 
         return redirect()->back()->with('success', $pesanSukses);
     }
@@ -105,7 +128,6 @@ class EventController extends Controller
 
         $request->validate([
             'status'        => 'required|in:Pending,Approved,Rejected',
-            'agenda_type'   => 'nullable|in:internal,khusus,guru,umum',
             'room_id'       => 'required|exists:rooms,id',
             'start_session' => 'nullable|integer|min:1|max:10',
             'end_session'   => 'nullable|integer|min:1|max:10|gte:start_session',
@@ -124,6 +146,11 @@ class EventController extends Controller
             || (int) $event->start_session !== (int) $startSession
             || (int) $event->end_session !== (int) $endSession;
         $statusChanged = $event->status !== $status;
+
+        // Status yang sudah Approved bersifat final: tidak boleh diubah kembali ke Pending/Rejected
+        if ($event->status === 'Approved' && $status !== 'Approved') {
+            return redirect()->back()->with('error', 'Peminjaman yang sudah disetujui (Approved) tidak dapat diubah kembali ke Pending atau Rejected.');
+        }
 
         // Jika status Approved, cek apakah ruangan & sesi tujuan bentrok dengan acara lain yang Approved
         if ($status == 'Approved') {
@@ -169,8 +196,7 @@ class EventController extends Controller
             'start_session' => $startSession,
             'end_session'   => $endSession,
             'status'        => $status,
-            'move_reason'   => $request->input('move_reason'),
-            'agenda_type'   => $request->input('agenda_type', $event->getAttribute('agenda_type')),
+            'move_reason'   => $request->input('move_reason')
         ]);
 
         $event->refresh()->load('room');
